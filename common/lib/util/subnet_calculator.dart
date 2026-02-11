@@ -166,7 +166,7 @@ class SubnetCalculator {
 
     // Generate IPs by incrementing from network address + 1 to broadcast address - 1
     final current = List<int>.from(networkAddr);
-    
+
     // Increment past network address
     _incrementIp(current);
 

@@ -257,4 +257,40 @@ void main() {
       expect(prefixLength, 24);
     });
   });
+
+  group('SubnetCalculator - getIpRangeFromString', () {
+    test('Should calculate range from string IP with /24 prefix', () {
+      final range = SubnetCalculator.getIpRangeFromString('192.168.1.100', 24);
+
+      // /24 has 254 usable IPs minus current IP = 253
+      expect(range.length, 253);
+      expect(range.contains('192.168.1.1'), true);
+      expect(range.contains('192.168.1.254'), true);
+      expect(range.contains('192.168.1.100'), false); // current device IP
+    });
+
+    test('Should calculate range from string IP with /23 prefix', () {
+      final range = SubnetCalculator.getIpRangeFromString('192.168.1.100', 23);
+
+      // /23 has 510 usable IPs minus current IP = 509
+      expect(range.length, 509);
+      expect(range.contains('192.168.0.1'), true);
+      expect(range.contains('192.168.1.254'), true);
+      expect(range.contains('192.168.1.100'), false); // current device IP
+    });
+
+    test('Should default to /24 if prefix length not provided', () {
+      final range = SubnetCalculator.getIpRangeFromString('192.168.1.100');
+
+      // Default /24 has 254 usable IPs minus current IP = 253
+      expect(range.length, 253);
+      expect(range.contains('192.168.1.1'), true);
+      expect(range.contains('192.168.1.254'), true);
+    });
+
+    test('Should handle invalid IP addresses gracefully', () {
+      final range = SubnetCalculator.getIpRangeFromString('invalid.ip.address', 24);
+      expect(range.isEmpty, true);
+    });
+  });
 }
