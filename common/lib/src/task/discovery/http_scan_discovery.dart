@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:common/model/device.dart';
 import 'package:common/src/task/discovery/http_target_discovery.dart';
+import 'package:common/util/subnet_calculator.dart';
 import 'package:common/util/task_runner.dart';
 import 'package:logging/logging.dart';
 import 'package:refena/refena.dart';
@@ -21,8 +24,43 @@ class HttpScanDiscoveryService {
     required StateAccessor<HttpTargetDiscoveryService> targetedDiscoveryService,
   }) : _targetedDiscoveryService = targetedDiscoveryService;
 
-  Stream<Device> getStream({required String networkInterface, required int port, required bool https}) {
-    final ipList = List.generate(256, (i) => '${networkInterface.split('.').take(3).join('.')}.$i').where((ip) => ip != networkInterface).toList();
+  Stream<Device> getStream({
+    required String networkInterface,
+    required int port,
+    required bool https,
+    InternetAddress? interfaceAddress,
+    int? prefixLength,
+  }) {
+    List<String> ipList;
+
+    // Try to use subnet-aware scanning if prefix length is provided
+    if (prefixLength != null) {
+      _logger.info('Using subnet-aware scanning for $networkInterface with prefix /$prefixLength');
+      ipList = SubnetCalculator.getIpRangeFromString(networkInterface, prefixLength);
+
+      // If subnet calculation returns empty (e.g., too large subnet or error),
+      // fall back to /24 scanning
+      if (ipList.isEmpty) {
+        _logger.warning('Subnet calculation returned empty list, falling back to /24 scan');
+        ipList = _generate24SubnetIps(networkInterface);
+      }
+    } else if (interfaceAddress != null) {
+      // Backward compatibility: Try using InternetAddress if provided
+      _logger.info('Using subnet-aware scanning for ${interfaceAddress.address}');
+      ipList = SubnetCalculator.getIpRange(interfaceAddress);
+
+      if (ipList.isEmpty) {
+        _logger.warning('Subnet calculation returned empty list, falling back to /24 scan');
+        ipList = _generate24SubnetIps(networkInterface);
+      }
+    } else {
+      // Fallback to traditional /24 scanning for backward compatibility
+      _logger.info('No subnet information provided, using traditional /24 scan for $networkInterface');
+      ipList = _generate24SubnetIps(networkInterface);
+    }
+
+    _logger.info('Scanning ${ipList.length} IP addresses');
+
     _runners[networkInterface]?.stop();
     _runners[networkInterface] = TaskRunner<Device?>(
       initialTasks: List.generate(
@@ -33,6 +71,14 @@ class HttpScanDiscoveryService {
     );
 
     return _runners[networkInterface]!.stream.where((device) => device != null).cast<Device>();
+  }
+
+  /// Generates IP list for traditional /24 subnet scanning.
+  /// This is the original behavior for backward compatibility.
+  List<String> _generate24SubnetIps(String networkInterface) {
+    return List.generate(256, (i) => '${networkInterface.split('.').take(3).join('.')}.$i')
+        .where((ip) => ip != networkInterface)
+        .toList();
   }
 
   Stream<Device> getFavoriteStream({required List<(String, int)> devices, required bool https}) {
