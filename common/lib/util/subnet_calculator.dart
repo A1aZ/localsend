@@ -168,28 +168,39 @@ class SubnetCalculator {
     final current = List<int>.from(networkAddr);
 
     // Increment past network address
-    _incrementIp(current);
+    if (!_incrementIp(current)) {
+      // Overflow on first increment - shouldn't happen in valid subnets
+      _logger.warning('IP overflow when incrementing past network address');
+      return [];
+    }
 
     while (_compareIp(current, broadcastAddr) < 0) {
       final ipStr = current.join('.');
       if (ipStr != currentIp) {
         result.add(ipStr);
       }
-      _incrementIp(current);
+      if (!_incrementIp(current)) {
+        // Overflow occurred - stop to prevent infinite loop
+        _logger.warning('IP overflow during range generation, stopping');
+        break;
+      }
     }
 
     return result;
   }
 
   /// Increments an IP address by one.
-  static void _incrementIp(List<int> ip) {
+  /// Returns true if successful, false if overflow occurs (255.255.255.255 -> 0.0.0.0).
+  static bool _incrementIp(List<int> ip) {
     for (int i = 3; i >= 0; i--) {
       if (ip[i] < 255) {
         ip[i]++;
-        break;
+        return true;
       }
       ip[i] = 0;
     }
+    // Overflow occurred (all octets were 255)
+    return false;
   }
 
   /// Compares two IP addresses.

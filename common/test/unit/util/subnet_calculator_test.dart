@@ -178,9 +178,9 @@ void main() {
       expect(range.contains('192.168.1.100'), false); // current device IP
     });
 
-    test('Should return empty list if range exceeds safety limit', () {
+    test('Should return empty list if range exceeds safety limit (/16)', () {
       // /16 network spans 192.168.0.0 to 192.168.255.255 (65536 addresses total)
-      // Minus network and broadcast = 65534 usable IPs, which meets the safety limit
+      // Minus network and broadcast = 65534 usable IPs, which equals maxIpsToScan
       final network = [192, 168, 0, 0];
       final broadcast = [192, 168, 255, 255];
       final currentIp = '192.168.1.100';
@@ -189,6 +189,33 @@ void main() {
 
       // Should return empty because usable IPs >= maxIpsToScan (65534)
       expect(range.length, 0);
+    });
+
+    test('Should return empty list if range exceeds safety limit (/15)', () {
+      // /15 network has 131070 usable IPs, clearly exceeding the limit
+      final network = [192, 168, 0, 0];
+      final broadcast = [192, 169, 255, 255];
+      final currentIp = '192.168.1.100';
+
+      final range = SubnetCalculator.generateIpRange(network, broadcast, currentIp);
+
+      // Should return empty because usable IPs far exceed maxIpsToScan
+      expect(range.length, 0);
+    });
+
+    test('Should handle range just under safety limit (/17)', () {
+      // /17 network has 32766 usable IPs, under the limit
+      final network = [192, 168, 0, 0];
+      final broadcast = [192, 168, 127, 255];
+      final currentIp = '192.168.1.100';
+
+      final range = SubnetCalculator.generateIpRange(network, broadcast, currentIp);
+
+      // Should generate IPs because it's under the safety limit
+      expect(range.length, 32765); // 32766 - 1 for current IP
+      expect(range.contains('192.168.0.1'), true);
+      expect(range.contains('192.168.127.254'), true);
+      expect(range.contains('192.168.1.100'), false); // current device IP
     });
 
     test('Should handle /32 network (single host)', () {
