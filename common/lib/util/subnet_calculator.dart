@@ -26,7 +26,7 @@ class SubnetCalculator {
   /// - The address is IPv6
   /// - The calculated range exceeds maxIpsToScan
   /// - An error occurs during calculation
-  static List<String> getIpRange(InternetAddress address) {
+  static List<String> getIpRange(InternetAddress address, [int? prefixLength]) {
     try {
       // Only support IPv4 for now
       if (address.type != InternetAddressType.IPv4) {
@@ -35,19 +35,36 @@ class SubnetCalculator {
       }
 
       final ipBytes = address.rawAddress;
-      final prefixLength = getPrefixLength(address);
+      final effectivePrefixLength = prefixLength ?? getPrefixLength(address);
 
-      _logger.info('Calculating subnet range for ${address.address} with prefix length /$prefixLength');
+      _logger.info('Calculating subnet range for ${address.address} with prefix length /$effectivePrefixLength');
 
-      final networkAddr = calculateNetworkAddress(ipBytes, prefixLength);
-      final broadcastAddr = calculateBroadcastAddress(ipBytes, prefixLength);
+      final networkAddr = calculateNetworkAddress(ipBytes, effectivePrefixLength);
+      final broadcastAddr = calculateBroadcastAddress(ipBytes, effectivePrefixLength);
 
       final ipRange = generateIpRange(networkAddr, broadcastAddr, address.address);
 
-      _logger.info('Generated ${ipRange.length} IP addresses to scan (prefix: /$prefixLength)');
+      _logger.info('Generated ${ipRange.length} IP addresses to scan (prefix: /$effectivePrefixLength)');
       return ipRange;
     } catch (e, stackTrace) {
       _logger.warning('Error calculating IP range for ${address.address}', e, stackTrace);
+      return [];
+    }
+  }
+
+  /// Returns a list of all usable IP addresses in the subnet for the given IP string.
+  ///
+  /// This is a convenience method that parses the IP string into an InternetAddress
+  /// and then calls [getIpRange].
+  ///
+  /// The [prefixLength] parameter specifies the CIDR prefix length (e.g., 24 for /24).
+  /// If not provided, defaults to 24 (most common for home/office networks).
+  static List<String> getIpRangeFromString(String ipAddress, [int prefixLength = 24]) {
+    try {
+      final address = InternetAddress(ipAddress);
+      return getIpRange(address, prefixLength);
+    } catch (e, stackTrace) {
+      _logger.warning('Error parsing IP address $ipAddress', e, stackTrace);
       return [];
     }
   }

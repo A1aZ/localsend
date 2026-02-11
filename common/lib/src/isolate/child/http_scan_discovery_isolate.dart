@@ -12,11 +12,13 @@ class HttpInterfaceScanTask implements HttpScanTask {
   final String networkInterface;
   final int port;
   final bool https;
+  final int? prefixLength;
 
   HttpInterfaceScanTask({
     required this.networkInterface,
     required this.port,
     required this.https,
+    this.prefixLength,
   });
 }
 
@@ -47,6 +49,7 @@ Future<void> setupHttpScanDiscoveryIsolate(
               networkInterface: data.networkInterface,
               port: data.port,
               https: data.https,
+              prefixLength: data.prefixLength,
             ),
         HttpFavoriteScanTask data => ref.read(httpScanDiscoveryProvider).getFavoriteStream(
               devices: data.favorites,

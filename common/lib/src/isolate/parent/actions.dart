@@ -69,11 +69,13 @@ class IsolateInterfaceHttpDiscoveryAction extends ReduxActionWithResult<IsolateC
   final String networkInterface;
   final int port;
   final bool https;
+  final int? prefixLength;
 
   IsolateInterfaceHttpDiscoveryAction({
     required this.networkInterface,
     required this.port,
     required this.https,
+    this.prefixLength,
   });
 
   @override
@@ -87,6 +89,7 @@ class IsolateInterfaceHttpDiscoveryAction extends ReduxActionWithResult<IsolateC
       networkInterface: networkInterface,
       port: port,
       https: https,
+      prefixLength: prefixLength,
     );
 
     return (
